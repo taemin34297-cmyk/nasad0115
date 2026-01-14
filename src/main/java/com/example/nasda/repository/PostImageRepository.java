@@ -9,7 +9,11 @@ import java.util.Optional;
 
 public interface PostImageRepository extends JpaRepository<PostImageEntity, Integer> {
 
+    // ✅ PostImageService가 쓰는 메서드 (복구)
     List<PostImageEntity> findByPost_PostIdOrderBySortOrderAsc(Integer postId);
+
+    // ✅ PostService가 쓰는 메서드 (유지)
+    List<PostImageEntity> findAllByPost_PostIdOrderBySortOrderAsc(Integer postId);
 
     Optional<PostImageEntity> findFirstByPost_PostIdOrderBySortOrderAsc(Integer postId);
 

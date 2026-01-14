@@ -10,6 +10,13 @@ import org.springframework.security.web.context.HttpSessionSecurityContextReposi
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import com.example.nasda.dto.post.PostViewDto;
+import com.example.nasda.repository.CommentRepository;
+import com.example.nasda.service.PostService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
+
 
 import jakarta.servlet.http.HttpSession;
 import java.util.List;
@@ -20,10 +27,38 @@ import java.util.List;
 public class UserController {
 
     private final LoginService loginService;
+    private final PostService postService;
+    private final CommentRepository commentRepository;
 
     @GetMapping("/login")
     public String loginForm() {
         return "user/login";
+    }
+
+    // ✅ 추가 1: 회원가입 화면 GET
+    @GetMapping("/signup")
+    public String signupForm() {
+        return "user/signup";
+    }
+
+    // ✅ 추가 2: 마이페이지 화면 GET
+    @GetMapping("/mypage")
+    public String mypage(HttpSession session, Model model) {
+        UserEntity loginUser = (UserEntity) session.getAttribute("loginUser");
+        if (loginUser == null) return "redirect:/user/login";
+
+        Integer userId = loginUser.getUserId();
+
+        // 템플릿이 요구하는 모델 값들
+        model.addAttribute("user", loginUser);
+
+        model.addAttribute("postCount", postService.countMyPosts(userId));
+        model.addAttribute("commentCount", commentRepository.countByUserId(userId));
+
+        List<PostViewDto> myPosts = postService.getMyRecentPosts(userId, 4);
+        model.addAttribute("myPosts", myPosts); // ✅ 절대 null이면 안 됨
+
+        return "user/mypage";
     }
 
     @PostMapping("/login")
@@ -35,26 +70,25 @@ public class UserController {
             UserEntity loginUser = loginService.login(username, password);
 
             if (loginUser != null) {
-                // 1. 일반 세션에 저장 (기존 방식 유지)
                 session.setAttribute("loginUser", loginUser);
 
-                // 2. ⭐ 스프링 시큐리티 인증 객체 생성 및 등록
-                // loginUser.getLoginId()를 인증 주체(Principal)로 설정합니다.
-                UsernamePasswordAuthenticationToken token = new UsernamePasswordAuthenticationToken(
-                        loginUser.getLoginId(),
-                        null,
-                        List.of(new SimpleGrantedAuthority("ROLE_USER"))
-                );
+                UsernamePasswordAuthenticationToken token =
+                        new UsernamePasswordAuthenticationToken(
+                                loginUser.getLoginId(),
+                                null,
+                                List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                        );
 
-                // 시큐리티 컨텍스트에 저장
                 SecurityContextHolder.getContext().setAuthentication(token);
 
-                // 3. 세션에 시큐리티 컨텍스트 동기화 (이게 있어야 다음 요청에서도 유지됨)
-                session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
-                        SecurityContextHolder.getContext());
+                session.setAttribute(
+                        HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY,
+                        SecurityContextHolder.getContext()
+                );
 
                 return "redirect:/";
             }
+
             model.addAttribute("errorMessage", "아이디 또는 비밀번호가 일치하지 않습니다.");
             return "user/login";
 
@@ -62,5 +96,18 @@ public class UserController {
             model.addAttribute("errorMessage", e.getMessage());
             return "user/login";
         }
+    }
+
+    @GetMapping("/logout")
+    public String logout(HttpServletRequest request,
+                         HttpServletResponse response,
+                         HttpSession session) {
+
+        session.invalidate();
+        new SecurityContextLogoutHandler().logout(
+                request, response, SecurityContextHolder.getContext().getAuthentication()
+        );
+
+        return "redirect:/";
     }
 }

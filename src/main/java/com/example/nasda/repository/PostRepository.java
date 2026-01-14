@@ -8,6 +8,10 @@ import java.util.List;
 
 public interface PostRepository extends JpaRepository<PostEntity, Integer> {
 
+    long countByUser_UserId(Integer userId);
+
+    List<PostEntity> findTop4ByUser_UserIdOrderByCreatedAtDesc(Integer userId);
+
     // 단순 버전
     List<PostEntity> findAllByOrderByCreatedAtDesc();
 

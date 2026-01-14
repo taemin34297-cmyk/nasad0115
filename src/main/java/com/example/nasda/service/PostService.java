@@ -5,6 +5,7 @@ import com.example.nasda.domain.PostEntity;
 import com.example.nasda.domain.UserEntity;
 import com.example.nasda.domain.UserRepository;
 import com.example.nasda.dto.post.HomePostDto;
+import com.example.nasda.dto.post.PostViewDto;
 import com.example.nasda.repository.CategoryRepository;
 import com.example.nasda.repository.CommentRepository;
 import com.example.nasda.repository.PostImageRepository;
@@ -98,5 +99,40 @@ public class PostService {
 
         // ✅ 3. 게시글 삭제
         postRepository.delete(post);
+    }
+
+    // ✅ 마이페이지: 내 게시글 개수
+    @Transactional(readOnly = true)
+    public long countMyPosts(Integer userId) {
+        return postRepository.countByUser_UserId(userId);
+    }
+
+    // ✅ 마이페이지: 내 최근 게시글 목록
+    @Transactional(readOnly = true)
+    public List<PostViewDto> getMyRecentPosts(Integer userId, int limit) {
+
+        // 지금은 Repository가 Top4 기반이라 limit은 참고값(추후 PageRequest로 개선 가능)
+        List<PostEntity> posts = postRepository.findTop4ByUser_UserIdOrderByCreatedAtDesc(userId);
+
+        return posts.stream()
+                .map(post -> {
+                    List<String> images = postImageRepository
+                            .findAllByPost_PostIdOrderBySortOrderAsc(post.getPostId())
+                            .stream()
+                            .map(img -> img.getImageUrl())
+                            .toList();
+
+                    return new PostViewDto(
+                            post.getPostId(),
+                            post.getTitle(),
+                            post.getDescription(), // PostViewDto.content 에 description 매핑
+                            post.getCategory().getCategoryName(), // ✅ 여기만 수정!
+                            new PostViewDto.AuthorDto(post.getUser().getNickname()),
+                            images,
+                            post.getCreatedAt(),
+                            false
+                    );
+                })
+                .toList();
     }
 }
