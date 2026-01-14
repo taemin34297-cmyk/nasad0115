@@ -16,6 +16,8 @@ import com.example.nasda.service.PostService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
+import com.example.nasda.dto.UserJoinDto;
+import com.example.nasda.service.UserService;
 
 
 import jakarta.servlet.http.HttpSession;
@@ -27,6 +29,7 @@ import java.util.List;
 public class UserController {
 
     private final LoginService loginService;
+    private final UserService userService;
     private final PostService postService;
     private final CommentRepository commentRepository;
 
@@ -109,5 +112,22 @@ public class UserController {
         );
 
         return "redirect:/";
+    }
+
+    @PostMapping("/signup")
+    public String signup(@RequestParam String loginId,
+                         @RequestParam String password,
+                         @RequestParam String nickname,
+                         @RequestParam String email,
+                         Model model) {
+        try {
+            UserJoinDto dto = new UserJoinDto(loginId, password, nickname, email);
+            userService.join(dto);
+
+            return "redirect:/user/login";
+        } catch (Exception e) {
+            model.addAttribute("errorMessage", e.getMessage());
+            return "user/signup";
+        }
     }
 }
